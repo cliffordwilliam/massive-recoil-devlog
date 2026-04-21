@@ -1,7 +1,7 @@
 .git
-.gitignore
-docs
-scripts
-node_modules
+docs/
+scripts/
+get-docker.sh
 README.md
-.env
+.env.example
+*.sh

@@ -9,8 +9,13 @@
 ## What this endpoint does
 
 Accepts a new user's credentials, validates them, hashes the password, writes the user to the
-database, establishes a session cookie, and returns the created user as JSON. Mirrors the exact
-security decisions made by the Odin Project's Devise-backed implementation.
+database, establishes a session cookie, and returns the created user as JSON.
+
+The **auth and validation decisions** (password hashing, email normalization, field lengths,
+dual uniqueness enforcement) are derived directly from the Odin Project's Devise-backed
+implementation. The **response format** (JSON + 201) is a deliberate architectural departure —
+the Odin Project is a Rails monolith that responds with HTML redirects, whereas this
+implementation is a dedicated JSON API designed for a split backend/frontend architecture.
 
 ---
 
@@ -126,6 +131,28 @@ gives you a user-friendly error message. The DB unique index covers the race con
 two requests arriving at the same millisecond with the same email, both passing the app check
 before either writes. The DB constraint rejects the second write at the hardware level. You
 need both.
+
+### Handling the DB unique constraint violation
+
+When the DB index fires (the race condition case), Postgres throws error code `23505`
+(unique_violation). Your handler **must** catch this specific error and return a `422` with a
+friendly message — not a `500`. Letting it bubble up as a server error would leak that the
+email exists and would be a poor user experience.
+
+```ts
+try {
+  await db.insert(users).values({ ... });
+} catch (err) {
+  if (err.code === '23505') {
+    // Postgres unique_violation — treat the same as the app-level uniqueness failure
+    return error(422, { errors: { email: ['has already been taken'] } });
+  }
+  throw err; // anything else is a genuine server error
+}
+```
+
+The key distinction: catch `23505` and handle it gracefully as a validation error. Re-throw
+everything else so it becomes a `500` as intended.
 
 ### Columns intentionally excluded from MVP
 
