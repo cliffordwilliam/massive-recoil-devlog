@@ -18,4 +18,6 @@ trap cleanup SIGINT SIGTERM
 docker compose up --build -d
 
 echo "Containers are running. Press Ctrl+C to stop..."
-docker compose logs -f
+docker compose logs -f || true
+
+cleanup
