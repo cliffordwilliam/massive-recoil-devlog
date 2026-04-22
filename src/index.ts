@@ -1,6 +1,7 @@
 import './env'
 import { Elysia } from 'elysia'
 import pino from 'pino'
+import { errors } from './errors'
 import { error_handler } from './plugins/error_handler'
 import { enforce_json_content_type } from './plugins/content_type_guard'
 import { users_router } from './users/router'
@@ -13,6 +14,7 @@ const app = new Elysia({
 	},
 })
 	.decorate('logger', pino())
+	.error(errors)
 	.onError(error_handler)
 	.onRequest(enforce_json_content_type)
 	.use(users_router)

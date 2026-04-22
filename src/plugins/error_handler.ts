@@ -1,4 +1,3 @@
-import { AppError, ValidationError } from '../errors'
 
 const is_prod = Bun.env.NODE_ENV === 'production'
 
@@ -18,27 +17,42 @@ function safe_500(error: unknown) {
 	}
 }
 
-export function error_handler({ code, error, status, logger }) {
-		if (error instanceof ValidationError) {
-			return status(422, { errors: error.errors })
-		}
+export function error_handler({ code, error, set, logger }) {
+	switch (code) {
+		case 'VALIDATION_ERROR':
+			set.status = 422
+			return { errors: error.errors }
 
-		if (error instanceof AppError) {
-			return status(error.status_code, { error: error.message })
-		}
+		case 'APP_ERROR':
+			set.status = error.status_code
+			return { error: error.message }
 
-		if (code === 'VALIDATION') {
-			return status(422, { errors: { body: ['is invalid'] } })
-		}
+		case 'VALIDATION':
+			set.status = 422
+			return { errors: { body: ['is invalid'] } }
 
-		if (is_pg_error(error)) {
-			if (error.code === '23505') {
-				return status(422, { errors: { email: ['has already been taken'] } })
+		case 'NOT_FOUND':
+			set.status = 404
+			return { error: 'Route not found' }
+
+		case 'UNSUPPORTED_MEDIA_TYPE_ERROR':
+			set.status = 415
+			return { error: error.message }
+
+		case 'INTERNAL_SERVER_ERROR':
+			if (is_pg_error(error) && error.code === '23505') {
+				set.status = 422
+				const match = (error as any).detail?.match(/\((.*?)\)/)
+				const field = match ? match[1] : 'field'
+				return { errors: { [field]: [`${field} has already been taken`] } }
 			}
-			logger.error('Unexpected postgres error', error)
-			return status(500, safe_500(error))
-		}
+			logger.error(error)
+			set.status = 500
+			return safe_500(error)
 
-		logger.error('Unhandled error', error)
-		return status(500, safe_500(error))
+		default:
+			logger.error(error)
+			set.status = 500
+			return safe_500(error)
 	}
+}
