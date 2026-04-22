@@ -36,7 +36,7 @@ export async function register_user(input: {
 
 	if (!password_confirmation) {
 		errors.password_confirmation = ["can't be blank"]
-	} else if (password && password_confirmation !== password) {
+	} else if (!errors.password && password_confirmation !== password) {
 		errors.password_confirmation = ["doesn't match password"]
 	}
 

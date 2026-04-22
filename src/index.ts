@@ -1,25 +1,20 @@
 import './env'
 import { Elysia } from 'elysia'
-import { UnsupportedMediaTypeError } from './errors'
+import pino from 'pino'
 import { error_handler } from './plugins/error_handler'
-import { logger } from './plugins/logger'
+import { enforce_json_content_type } from './plugins/content_type_guard'
 import { users_router } from './users/router'
 
-const METHODS_WITH_BODY = new Set(['POST', 'PUT', 'PATCH'])
-
 const app = new Elysia({
+	prefix: '/api',
 	cookie: {
 		secrets: process.env.SESSION_SECRET!,
 		sign: ['session'],
 	},
 })
-	.use(logger)
-	.use(error_handler)
-	.onRequest(({ request }) => {
-		if (!METHODS_WITH_BODY.has(request.method)) return
-		if (!request.headers.get('content-type')?.includes('application/json'))
-			throw new UnsupportedMediaTypeError()
-	})
+	.decorate('logger', pino())
+	.onError(error_handler)
+	.onRequest(enforce_json_content_type)
 	.use(users_router)
 	.listen(3000)
 

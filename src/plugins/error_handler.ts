@@ -1,4 +1,3 @@
-import { Elysia } from 'elysia'
 import { AppError, ValidationError } from '../errors'
 
 const is_prod = Bun.env.NODE_ENV === 'production'
@@ -19,9 +18,7 @@ function safe_500(error: unknown) {
 	}
 }
 
-export const error_handler = new Elysia({ name: 'error_handler' }).onError(
-	{ as: 'global' },
-	({ code, error, status, logger }) => {
+export function error_handler({ code, error, status, logger }) {
 		if (error instanceof ValidationError) {
 			return status(422, { errors: error.errors })
 		}
@@ -44,5 +41,4 @@ export const error_handler = new Elysia({ name: 'error_handler' }).onError(
 
 		logger.error('Unhandled error', error)
 		return status(500, safe_500(error))
-	},
-)
+	}
